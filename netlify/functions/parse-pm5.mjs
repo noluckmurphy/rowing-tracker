@@ -13,21 +13,29 @@ export const handler = async (event) => {
     }
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: event.body,
-  })
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: event.body,
+    })
 
-  const data = await response.text()
+    const data = await response.text()
 
-  return {
-    statusCode: response.status,
-    headers: { 'Content-Type': 'application/json' },
-    body: data,
+    return {
+      statusCode: response.status,
+      headers: { 'Content-Type': 'application/json' },
+      body: data,
+    }
+  } catch (err) {
+    return {
+      statusCode: 502,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Failed to reach API' }),
+    }
   }
 }

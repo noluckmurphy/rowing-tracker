@@ -90,12 +90,28 @@ function paceToWatts(paceStr) {
   return Math.round(2.8 / Math.pow(secs / 500, 3))
 }
 
-function fileToBase64(file) {
+function compressImage(file, maxDim = 1568, quality = 0.85) {
   return new Promise((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(r.result.split(',')[1])
-    r.onerror = () => reject(new Error('Read failed'))
-    r.readAsDataURL(file)
+    const img = new Image()
+    const objUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl)
+      let { width, height } = img
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height)
+        width = Math.round(width * scale)
+        height = Math.round(height * scale)
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, width, height)
+      const dataUrl = canvas.toDataURL('image/jpeg', quality)
+      resolve({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' })
+    }
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Failed to load image')) }
+    img.src = objUrl
   })
 }
 
@@ -141,8 +157,8 @@ Use null for any field not visible. Parse date from screen (e.g. "Mar 14 2026" �
 async function parsePM5Screenshots(files) {
   const imageBlocks = await Promise.all(
     files.map(async (file) => {
-      const b64 = await fileToBase64(file)
-      return { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: b64 } }
+      const { base64, mediaType } = await compressImage(file)
+      return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }
     })
   )
 
@@ -169,12 +185,19 @@ async function parsePM5Screenshots(files) {
 
   if (!response.ok) {
     const errBody = await response.text().catch(() => '')
+    if (response.status >= 500) {
+      throw new Error('Image processing failed — try fewer or smaller images')
+    }
     throw new Error(`API error ${response.status}: ${errBody}`)
   }
   const data = await response.json()
   const raw = data.content.find(b => b.type === 'text')?.text || ''
   const clean = raw.replace(/```json|```/gi, '').trim()
-  return JSON.parse(clean)
+  try {
+    return JSON.parse(clean)
+  } catch {
+    throw new Error('Failed to parse workout data from screenshot — try a clearer image')
+  }
 }
 
 // ─── Global CSS ───────────────────────────────────────────────────────────────
