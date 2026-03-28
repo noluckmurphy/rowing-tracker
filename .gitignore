@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables (API keys, secrets)
+.env
+.env.local
+.env.production
+.env.staging
+*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Local Netlify folder
+.netlify
+
+# Claude Code local settings
+.claude/settings.local.json
